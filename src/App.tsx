@@ -287,10 +287,6 @@ export default function App() {
 
         {/* ── Top Header Matching Mockup ── */}
         <div className="top-nav-bar">
-          <div className="nav-back-circle" onClick={() => window.history.back()}>
-            <ArrowLeft size={16} color="var(--text-primary)" />
-          </div>
-
           <div className="nav-brand-group">
             {/* Green Nestora Logo Badge */}
             <div style={{
@@ -477,14 +473,21 @@ export default function App() {
               <span>Supports UPI, Cards, Netbanking & Wallets</span>
             </div>
 
-            <div className="pci-security-pill">
-              <ShieldCheck size={14} color="var(--brand-purple)" />
-              <span>Protected by Razorpay PCI-DSS Level 1 Security</span>
-            </div>
-
-            {/* 6. Frequently Asked Questions Accordion matching Screenshot */}
+            {/* Frequently Asked Questions Accordion */}
             <div style={{ marginTop: 24 }}>
               <span className="faq-header-label">FREQUENTLY ASKED QUESTIONS</span>
+
+              <div className="faq-box-item" onClick={() => setFaqOpen(faqOpen === 0 ? null : 0)}>
+                <div className="faq-q-row">
+                  <span className="faq-q-txt">What is Nestora?</span>
+                  <ChevronDown size={14} style={{ transform: faqOpen === 0 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </div>
+                {faqOpen === 0 && (
+                  <p className="faq-a-txt">
+                    Nestora is an all-in-one Smart Hostel & Property Management platform used by your hostel management to issue digital invoices, verify rent payments, and manage resident stays securely.
+                  </p>
+                )}
+              </div>
 
               <div className="faq-box-item" onClick={() => setFaqOpen(faqOpen === 1 ? null : 1)}>
                 <div className="faq-q-row">
