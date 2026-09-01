@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Sun,
   Moon,
-  ArrowLeft,
   CheckCircle2,
   Home,
   User,
