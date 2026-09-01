@@ -84,8 +84,9 @@ export default function App() {
         throw new Error(funcError?.message || data?.error || 'Failed to retrieve payment link details.');
       }
 
-      const mappedTx: TransactionSession = {
+      const mappedTx: TransactionSession & { razorpay_key_id?: string } = {
         id: data.razorpay_order_id || '',
+        razorpay_key_id: data.razorpay_key_id,
         amount: (data.amount_paise || 0) / 100,
         currency: data.currency || 'INR',
         status: data.is_paid ? 'PAID' : 'PENDING',
@@ -155,7 +156,12 @@ export default function App() {
 
   // Trigger Razorpay Checkout overlay
   const handlePayment = async () => {
-    if (!transaction) return;
+    // Cast to include our extended fields
+    const tx = transaction as TransactionSession & { razorpay_key_id?: string };
+    if (!tx || !tx.id || !tx.razorpay_key_id) {
+      setError('Payment session is incomplete. Please refresh the page.');
+      return;
+    }
 
     try {
       setVerifying(true);
@@ -164,23 +170,14 @@ export default function App() {
         throw new Error('Razorpay Checkout failed to load. Please check your internet connection.');
       }
 
-      // 1. Create order on the backend
-      const { data: orderData, error: orderError } = await supabase.functions.invoke('tenant-pay-create-order', {
-        body: { token: transaction.payment_token }
-      });
-
-      if (orderError || !orderData) {
-        throw new Error(orderError?.message || 'Failed to initialize the secure order.');
-      }
-
       const options = {
-        key: orderData.razorpay_key_id,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: transaction.metadata?.property_name || 'Nestora Property',
-        description: transaction.metadata?.purpose || 'Rent Payment',
-        image: transaction.metadata?.property_logo || '/logo-light.png',
-        order_id: orderData.razorpay_order_id,
+        key: tx.razorpay_key_id,
+        amount: Math.round(tx.amount * 100), // convert back to paise for Razorpay config
+        currency: tx.currency,
+        name: tx.metadata?.property_name || 'Nestora Property',
+        description: tx.metadata?.purpose || 'Rent Payment',
+        image: tx.metadata?.property_logo || '/logo-light.png',
+        order_id: tx.id,
         handler: async function (response: any) {
           // Payment succeeded in overlay, verify on backend
           try {
