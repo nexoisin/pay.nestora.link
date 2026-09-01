@@ -43,7 +43,7 @@ declare global {
   }
 }
 
-export function App() {
+export default function App() {
   const [transaction, setTransaction] = useState<(TransactionSession & { razorpay_key_id?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
