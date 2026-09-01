@@ -99,7 +99,7 @@ export default function App() {
           property_logo: data.hostel_logo,
           purpose: data.description,
           due_date: data.expires_at,
-          room_number: data.room_number || 'N/A',
+          room_number: data.room_info || data.room_number || 'N/A',
           room_info: data.room_info || ''
         }
       };
