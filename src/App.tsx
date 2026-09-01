@@ -80,15 +80,33 @@ export default function App() {
         body: { token: tokenStr }
       });
 
-      if (funcError || !data) {
-        throw new Error(funcError?.message || 'Failed to retrieve payment link details.');
+      if (funcError || !data || data.success === false) {
+        throw new Error(funcError?.message || data?.error || 'Failed to retrieve payment link details.');
       }
 
-      setTransaction(data);
+      const mappedTx: TransactionSession = {
+        id: data.razorpay_order_id || '',
+        amount: (data.amount_paise || 0) / 100,
+        currency: data.currency || 'INR',
+        status: data.is_paid ? 'PAID' : 'PENDING',
+        payment_token: tokenStr,
+        metadata: {
+          resident_name: data.resident_name,
+          resident_email: data.resident_email,
+          resident_phone: data.resident_phone,
+          property_name: data.hostel_name,
+          property_logo: data.hostel_logo,
+          purpose: data.description,
+          due_date: data.expires_at,
+          room_number: data.room_number || 'N/A'
+        }
+      };
+
+      setTransaction(mappedTx);
 
       // Setup exact countdown timer based on expiry time if present
-      if (data.metadata?.expires_at) {
-        const remaining = Math.max(0, Math.floor((new Date(data.metadata.expires_at).getTime() - Date.now()) / 1000));
+      if (data.expires_at) {
+        const remaining = Math.max(0, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000));
         setTimeLeft(remaining);
       }
     } catch (err: any) {
