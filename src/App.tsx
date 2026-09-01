@@ -349,13 +349,13 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="animated-badge">
-                <span className="badge-dot"></span>
-                Payment Confirmed
+              <div className="animated-badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                <Lock size={12} style={{ marginRight: 5 }} />
+                Link Expired & Already Paid
               </div>
 
-              <h1 className="success-hero-title">Payment Successful!</h1>
-              <p className="success-hero-subtitle">Your rent payment has been received and confirmed by your hostel. You're all set! 🎉</p>
+              <h1 className="success-hero-title">Payment Already Completed!</h1>
+              <p className="success-hero-subtitle">This payment link has already been settled. The transaction is complete and this link is now closed to prevent duplicate payments. 🎉</p>
 
               <div className="ref-box-modern">
                 <div className="ref-label-modern">Payment Reference</div>
