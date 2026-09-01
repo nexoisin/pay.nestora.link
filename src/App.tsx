@@ -3,7 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import {
   ShieldCheck,
   Lock,
-  Clock,
   Copy,
   Receipt,
   AlertCircle,
