@@ -275,6 +275,11 @@ export default function App() {
 
   const isPaid = transaction?.status === 'PAID';
   const currentMonthStr = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const purposeRaw = transaction?.metadata?.purpose || '';
+  const hasMonth = /(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(purposeRaw);
+  const purposeLabel = hasMonth 
+    ? purposeRaw 
+    : (purposeRaw ? `${purposeRaw} - ${currentMonthStr}` : `Rent Payment - ${currentMonthStr}`);
 
   return (
     <div className="page-wrapper">
@@ -393,7 +398,7 @@ export default function App() {
 
                 <div className="hero-merchant-info">
                   <h2 className="hero-merchant-title">{transaction?.metadata?.property_name || 'GOOD SHEPHERD MENS PG'}</h2>
-                  <p className="hero-merchant-sub">Rent Payment · {currentMonthStr}</p>
+                  <p className="hero-merchant-sub">{purposeLabel}</p>
                   <div className="hero-ref-row" onClick={copyRef}>
                     <span>Ref: {transaction?.payment_token?.substring(0, 10)}...</span>
                     <Copy size={9} />
@@ -440,7 +445,7 @@ export default function App() {
                 <span className="card-section-title">Invoice Details</span>
               </div>
               <div className="invoice-row">
-                <span className="invoice-row-key">{transaction?.metadata?.purpose || `Rent Payment - ${currentMonthStr}`}</span>
+                <span className="invoice-row-key">{purposeLabel}</span>
                 <span className="invoice-row-val">{formattedAmount}</span>
               </div>
               <div className="invoice-divider"></div>
