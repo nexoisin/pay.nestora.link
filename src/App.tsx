@@ -48,7 +48,6 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(86400);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'bank'>('card');
@@ -221,13 +220,6 @@ export function App() {
       setError(err.message || 'Secure Checkout failed to initialize.');
       setVerifying(false);
     }
-  };
-
-  const copyPaymentToken = () => {
-    if (!transaction) return;
-    navigator.clipboard.writeText(transaction.payment_token);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loading) {
