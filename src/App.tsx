@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import {
-  ShieldCheck, CheckCircle2, AlertCircle, Lock, Zap,
-  Copy, ChevronDown, Clock, RefreshCw, Sun, Moon, Receipt
+  ShieldCheck, AlertCircle, Lock, Zap, Copy,
+  ChevronDown, Clock, RefreshCw, Sun, Moon, Receipt
 } from 'lucide-react';
 
 declare global {
@@ -33,6 +33,7 @@ interface TransactionSession {
     purpose?: string;
     due_date?: string;
     room_number?: string;
+    room_info?: string;
   };
 }
 
@@ -190,7 +191,7 @@ export default function App() {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_signature: response.razorpay_signature,
-                token: transaction.payment_token
+                token: tx.payment_token
               }
             });
 
@@ -207,9 +208,9 @@ export default function App() {
           }
         },
         prefill: {
-          name: transaction.metadata?.resident_name || '',
-          email: transaction.metadata?.resident_email || '',
-          contact: transaction.metadata?.resident_phone || '',
+          name: tx.metadata?.resident_name || '',
+          email: tx.metadata?.resident_email || '',
+          contact: tx.metadata?.resident_phone || '',
           method: 'upi'
         },
         theme: {
