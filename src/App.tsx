@@ -1,10 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import {
-  ShieldCheck,
-  Lock,
-  Clock,
-  Copy,
   Receipt,
   AlertCircle,
   RefreshCw,
@@ -14,10 +10,7 @@ import {
   CreditCard,
   Building2,
   CheckCircle2,
-  Home,
-  User,
-  Zap,
-  ShoppingBag
+  Home
 } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xxx.supabase.co';
@@ -294,7 +287,7 @@ export function App() {
               <div style={{
                 width: 68, height: 68, borderRadius: '50%',
                 background: 'var(--success-light)', border: '1px solid var(--success-border)',
-                display: 'flex', alignItems: 'center', justifyCenter: 'center', margin: '0 auto 16px'
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'
               }}>
                 <CheckCircle2 size={36} color="var(--success)" style={{ margin: 'auto' }} />
               </div>
