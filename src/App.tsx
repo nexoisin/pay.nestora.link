@@ -99,7 +99,8 @@ export default function App() {
           property_logo: data.hostel_logo,
           purpose: data.description,
           due_date: data.expires_at,
-          room_number: data.room_number || 'N/A'
+          room_number: data.room_number || 'N/A',
+          room_info: data.room_info || ''
         }
       };
 
@@ -175,7 +176,9 @@ export default function App() {
         amount: Math.round(tx.amount * 100), // convert back to paise for Razorpay config
         currency: tx.currency,
         name: tx.metadata?.property_name || 'Nestora Property',
-        description: tx.metadata?.purpose || 'Rent Payment',
+        description: (tx.metadata as any)?.room_info 
+          ? `${tx.metadata?.purpose || 'Rent Payment'} | ${(tx.metadata as any).room_info}` 
+          : tx.metadata?.purpose || 'Rent Payment',
         image: tx.metadata?.property_logo || '/logo-light.png',
         order_id: tx.id,
         handler: async function (response: any) {
@@ -285,7 +288,7 @@ export default function App() {
       <div className="blob blob-3"></div>
 
       <div className="page-container" style={{ position: 'relative', zIndex: 1 }}>
-        
+
         {/* Top Header */}
         <div className="top-header">
           <div className="brand-badge">
@@ -321,7 +324,7 @@ export default function App() {
                     style={{
                       left: `${Math.random() * 100}%`,
                       top: `${-10 + Math.random() * -40}px`,
-                      background: ['#6F55F9','#10B981','#F59E0B','#3B82F6','#EC4899','#34D399'][Math.floor(Math.random() * 6)],
+                      background: ['#6F55F9', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#34D399'][Math.floor(Math.random() * 6)],
                       width: `${6 + Math.random() * 8}px`,
                       height: `${6 + Math.random() * 8}px`,
                       borderRadius: Math.random() > 0.5 ? '50%' : '3px',
@@ -335,12 +338,12 @@ export default function App() {
               {/* Animated ring + check icon */}
               <div className="icon-ring">
                 <svg className="ring-svg" viewBox="0 0 88 88">
-                  <circle className="ring-track" cx="44" cy="44" r="39"/>
-                  <circle className="ring-fill" cx="44" cy="44" r="39"/>
+                  <circle className="ring-track" cx="44" cy="44" r="39" />
+                  <circle className="ring-fill" cx="44" cy="44" r="39" />
                 </svg>
                 <div className="icon-inner">
                   <svg className="check-svg" viewBox="0 0 34 34">
-                    <path className="check-path" d="M8 17l7 7 11-11"/>
+                    <path className="check-path" d="M8 17l7 7 11-11" />
                   </svg>
                 </div>
               </div>
@@ -454,7 +457,7 @@ export default function App() {
                   <>
                     {/* Simplified Razorpay stylized logo */}
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                     </svg>
                     <span>Pay {formattedAmount} with Razorpay</span>
                   </>
@@ -476,7 +479,7 @@ export default function App() {
         {/* Simple Web App FAQ section */}
         <div className="faq-section">
           <span className="faq-section-label">Frequently Asked Questions</span>
-          
+
           <div className={`faq-item ${faqOpen === 1 ? 'open' : ''}`} onClick={() => setFaqOpen(faqOpen === 1 ? null : 1)}>
             <div className="faq-question">
               <span className="faq-q-text">Is my payment secure?</span>
