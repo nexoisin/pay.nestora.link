@@ -339,7 +339,7 @@ export default function App() {
 
               <div className="ref-box-modern">
                 <div className="ref-label-modern">Payment Reference</div>
-                <div className="ref-id-modern">{transaction?.payment_token.substring(0, 14)}...</div>
+                <div className="ref-id-modern">{transaction?.payment_token?.substring(0, 14)}...</div>
               </div>
 
               <button className="btn-modern" onClick={() => window.print()}>
@@ -374,7 +374,7 @@ export default function App() {
                 <div>
                   <h2 className="property-name">{transaction?.metadata?.property_name || 'Hostel / PG Partner'}</h2>
                   <div className="copy-ref" onClick={copyPaymentToken}>
-                    <span>Ref: <strong>{transaction?.payment_token.substring(0, 10)}...</strong></span>
+                    <span>Ref: <strong>{transaction?.payment_token?.substring(0, 10)}...</strong></span>
                     <Copy size={9} color="var(--primary)" />
                     {copied && <span style={{ color: 'var(--success)', fontSize: 8, marginLeft: 2 }}>Copied</span>}
                   </div>
