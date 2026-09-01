@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import {
+  ShieldCheck,
+  Lock,
+  Clock,
+  Copy,
   Receipt,
   AlertCircle,
   RefreshCw,
   Sun,
   Moon,
   ArrowLeft,
-  CreditCard,
-  Building2,
   CheckCircle2,
-  Home
+  Home,
+  User,
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xxx.supabase.co';
@@ -48,9 +53,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(86400);
+  const [copied, setCopied] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(805); // 13:25 countdown default
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<'card' | 'bank'>('card');
+  const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -222,6 +228,19 @@ export default function App() {
     }
   };
 
+  const copyRef = () => {
+    if (!transaction) return;
+    navigator.clipboard.writeText(transaction.payment_token);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   if (loading) {
     return (
       <div className="center-state">
@@ -241,7 +260,7 @@ export default function App() {
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', maxWidth: 280, fontSize: 12, lineHeight: 1.4, marginBottom: 20 }}>
           {error}
         </p>
-        <button className="sticky-pay-btn" onClick={() => window.location.reload()} style={{ padding: '12px 24px' }}>
+        <button className="green-action-btn" onClick={() => window.location.reload()} style={{ width: 'auto', padding: '0 24px' }}>
           <RefreshCw size={14} />
           Retry Connection
         </button>
@@ -256,160 +275,249 @@ export default function App() {
   }).format(transaction?.amount || 0);
 
   const isPaid = transaction?.status === 'PAID';
+  const currentMonthStr = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className="page-wrapper">
       <div className="page-container">
 
-        {/* Top Sample Navigation Header */}
-        <div className="sample-header">
-          <div className="sample-back-btn" onClick={() => window.history.back()}>
+        {/* ── Top Header Matching Mockup ── */}
+        <div className="top-nav-bar">
+          <div className="nav-back-circle" onClick={() => window.history.back()}>
             <ArrowLeft size={16} color="var(--text-primary)" />
           </div>
-          <h1 className="sample-title">{isPaid ? 'Order Details' : 'Payment Method'}</h1>
-          <div className="sample-icon-btn" onClick={() => setIsDarkMode(!isDarkMode)}>
-            {isDarkMode ? <Sun size={16} color="var(--text-primary)" /> : <Moon size={16} color="var(--text-primary)" />}
+
+          <div className="nav-brand-group">
+            {/* Green Nestora Logo Badge */}
+            <div style={{
+              width: 26, height: 26, borderRadius: 8, background: '#22C55E',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Home size={14} color="#FFFFFF" />
+            </div>
+            <span className="nav-brand-title">Nestora Pay</span>
+            <div className="nav-verified-chip">
+              <ShieldCheck size={11} />
+              <span>Verified Portal</span>
+            </div>
+          </div>
+
+          <div className="nav-theme-toggles">
+            <div className="theme-icon-circle" onClick={() => setIsDarkMode(!isDarkMode)}>
+              {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+            </div>
           </div>
         </div>
 
         {isPaid ? (
-          /* SAMPLE SCREEN 2: PAYMENT SUCCESSFUL VIEW */
+          /* ── PAYMENT SUCCESSFUL VIEW ── */
           <>
-            <div className="sample-card" style={{ textAlign: 'center', padding: '28px 20px' }}>
+            <div className="mock-card" style={{ textAlign: 'center', padding: '28px 20px' }}>
               <div style={{
-                width: 68, height: 68, borderRadius: '50%',
+                width: 64, height: 64, borderRadius: '50%',
                 background: 'var(--success-light)', border: '1px solid var(--success-border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'
               }}>
-                <CheckCircle2 size={36} color="var(--success)" style={{ margin: 'auto' }} />
+                <CheckCircle2 size={36} color="var(--success)" />
               </div>
 
-              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Payment Successful</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 6 }}>Payment Successful</h2>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 20 }}>
-                Your rent payment has been received and confirmed. Link is now closed.
+                Your rent payment has been received and confirmed.
               </p>
 
-              {/* Payment Details Table matching Sample */}
-              <span className="section-label" style={{ textAlign: 'left' }}>Payment Details</span>
+              <div className="card-section-header">
+                <FileText size={14} color="var(--primary)" />
+                <span className="card-section-title">Payment Details</span>
+              </div>
               <div style={{ background: 'var(--card-dark-bg)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-                <div className="detail-table-row">
-                  <span className="detail-table-key">Transaction ID</span>
-                  <span className="detail-table-val">{transaction?.payment_token?.substring(0, 12)}...</span>
+                <div className="resident-row">
+                  <span className="resident-row-key">Transaction ID</span>
+                  <span className="resident-row-val">{transaction?.payment_token?.substring(0, 14)}...</span>
                 </div>
-                <div className="detail-table-row">
-                  <span className="detail-table-key">Date</span>
-                  <span className="detail-table-val">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <div className="resident-row">
+                  <span className="resident-row-key">Date</span>
+                  <span className="resident-row-val">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </div>
-                <div className="detail-table-row">
-                  <span className="detail-table-key">Type of Transaction</span>
-                  <span className="detail-table-val">Razorpay Gateway</span>
+                <div className="resident-row">
+                  <span className="resident-row-key">Type of Transaction</span>
+                  <span className="resident-row-val">Razorpay Gateway</span>
                 </div>
-                <div className="detail-table-row">
-                  <span className="detail-table-key">Total</span>
-                  <span className="detail-table-val" style={{ color: 'var(--primary)', fontWeight: 900 }}>{formattedAmount}</span>
+                <div className="resident-row">
+                  <span className="resident-row-key">Total</span>
+                  <span className="resident-row-val" style={{ color: 'var(--primary)', fontWeight: 900 }}>{formattedAmount}</span>
                 </div>
-                <div className="detail-table-row">
-                  <span className="detail-table-key">Status</span>
-                  <span className="status-badge-green">
+                <div className="resident-row">
+                  <span className="resident-row-key">Status</span>
+                  <span style={{ color: 'var(--success)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <CheckCircle2 size={12} /> Success
                   </span>
                 </div>
               </div>
             </div>
 
-            <button className="sticky-pay-btn" onClick={() => window.print()} style={{ width: '100%', justifyContent: 'center', borderRadius: '16px' }}>
-              <Receipt size={16} />
+            <button className="green-action-btn" onClick={() => window.print()}>
+              <Receipt size={18} />
               Download Receipt
             </button>
           </>
         ) : (
-          /* SAMPLE SCREEN 1: CHECKOUT VIEW */
+          /* ── CHECKOUT FORM MATCHING MOCKUP SCREENSHOT ── */
           <>
-            {/* Card 1: Product / Merchant Card matching Sample */}
-            <div className="sample-card">
-              <div className="merchant-item-row">
-                {transaction?.metadata?.property_logo ? (
-                  <img src={transaction.metadata.property_logo} alt="property" className="merchant-item-img" />
-                ) : (
-                  <div className="merchant-item-placeholder">
-                    {transaction?.metadata?.property_name?.charAt(0) || 'H'}
+            {/* 1. Session Expiry Banner */}
+            <div className="expiry-session-banner">
+              <div className="expiry-banner-text">
+                <Lock size={13} color="var(--primary)" />
+                <span>Secure checkout · Session expires in</span>
+              </div>
+              <div className="expiry-timer-chip">
+                {formatTime(timeLeft)}
+              </div>
+            </div>
+
+            {/* 2. Merchant / Property Card */}
+            <div className="mock-card">
+              <div className="hero-merchant-layout">
+                <div className="hero-merchant-img-wrapper">
+                  {transaction?.metadata?.property_logo ? (
+                    <img src={transaction.metadata.property_logo} alt="property" className="hero-merchant-img" />
+                  ) : (
+                    <div className="hero-merchant-placeholder">
+                      {transaction?.metadata?.property_name?.charAt(0) || 'G'}
+                    </div>
+                  )}
+                  <div className="hero-verified-overlay">
+                    <CheckCircle2 size={9} />
+                    <span>Verified Partner</span>
                   </div>
-                )}
-                <div className="merchant-item-info">
-                  <h2 className="merchant-item-title">{transaction?.metadata?.property_name || 'Good Shepherd Mens PG'}</h2>
-                  <p className="merchant-item-desc">{transaction?.metadata?.purpose || 'Hostel Rent Payment'} · Verified Partner</p>
-                  <span className="merchant-item-price">{formattedAmount}</span>
+                </div>
+
+                <div className="hero-merchant-info">
+                  <h2 className="hero-merchant-title">{transaction?.metadata?.property_name || 'GOOD SHEPHERD MENS PG'}</h2>
+                  <p className="hero-merchant-sub">Rent Payment · {currentMonthStr}</p>
+                  <div className="hero-ref-row" onClick={copyRef}>
+                    <span>Ref: {transaction?.payment_token?.substring(0, 10)}...</span>
+                    <Copy size={9} />
+                    {copied && <span style={{ color: 'var(--success)', fontSize: 9 }}>Copied</span>}
+                  </div>
+                  <div className="hero-amount-txt">{formattedAmount}</div>
                 </div>
               </div>
             </div>
 
-            {/* Card 2: Deliver To / Resident Details matching Sample */}
-            <div className="sample-card">
-              <span className="section-label">Resident Details</span>
-              <div className="resident-delivery-card">
-                <div className="resident-delivery-info">
-                  <h3 className="resident-delivery-name">{transaction?.metadata?.resident_name || 'Resident'}</h3>
-                  <p className="resident-delivery-sub">
-                    {transaction?.metadata?.room_number || 'Room N/A'} · {transaction?.metadata?.resident_phone || 'Mobile N/A'}
-                  </p>
+            {/* 3. Resident Details Card */}
+            <div className="mock-card">
+              <div className="card-section-header">
+                <User size={15} color="var(--primary)" />
+                <span className="card-section-title">Resident Details</span>
+              </div>
+              <div className="resident-details-box">
+                <div className="resident-table">
+                  <div className="resident-row">
+                    <span className="resident-row-key">Resident Name</span>
+                    <span className="resident-row-val">{transaction?.metadata?.resident_name || 'Edwin Richard'}</span>
+                  </div>
+                  <div className="resident-row">
+                    <span className="resident-row-key">Room / Cot No</span>
+                    <span className="resident-row-val">{transaction?.metadata?.room_number || 'N/A'}</span>
+                  </div>
+                  <div className="resident-row">
+                    <span className="resident-row-key">Mobile Number</span>
+                    <span className="resident-row-val">{transaction?.metadata?.resident_phone || 'N/A'}</span>
+                  </div>
                 </div>
-                <div className="resident-map-badge">
-                  <Home size={16} />
+
+                <div className="room-badge-icon">
+                  <Home size={18} />
                   <span>ROOM</span>
                 </div>
               </div>
             </div>
 
-            {/* Card 3: Payment Method Options Grid matching Sample */}
-            <div className="sample-card">
-              <span className="section-label">Payment Method</span>
-              <div className="payment-methods-grid">
-                <div
-                  className={`method-card ${selectedMethod === 'card' ? 'selected' : ''}`}
-                  onClick={() => setSelectedMethod('card')}
-                >
-                  <div className="method-card-header">
-                    <CreditCard size={15} color={selectedMethod === 'card' ? 'var(--primary)' : 'var(--text-secondary)'} />
-                    <span className="method-card-title">Cards / UPI</span>
-                  </div>
-                  <p className="method-card-desc">Pay securely using credit/debit card, UPI or Netbanking.</p>
-                </div>
-
-                <div
-                  className={`method-card ${selectedMethod === 'bank' ? 'selected' : ''}`}
-                  onClick={() => setSelectedMethod('bank')}
-                >
-                  <div className="method-card-header">
-                    <Building2 size={15} color={selectedMethod === 'bank' ? 'var(--primary)' : 'var(--text-secondary)'} />
-                    <span className="method-card-title">Bank Transfer</span>
-                  </div>
-                  <p className="method-card-desc">Transfer money directly to your hostel account.</p>
-                </div>
+            {/* 4. Invoice Details Card */}
+            <div className="mock-card">
+              <div className="card-section-header">
+                <FileText size={15} color="var(--brand-purple)" />
+                <span className="card-section-title">Invoice Details</span>
+              </div>
+              <div className="invoice-row">
+                <span className="invoice-row-key">{transaction?.metadata?.purpose || `Rent Payment - ${currentMonthStr}`}</span>
+                <span className="invoice-row-val">{formattedAmount}</span>
+              </div>
+              <div className="invoice-divider"></div>
+              <div className="invoice-row" style={{ fontSize: 13 }}>
+                <span className="invoice-row-key" style={{ fontWeight: 800, color: 'var(--text-primary)' }}>Total Amount Payable</span>
+                <span className="invoice-row-val" style={{ fontSize: 15, fontWeight: 900, color: 'var(--primary)' }}>{formattedAmount}</span>
               </div>
             </div>
 
-            {/* Floating Sticky Bottom Bar matching Sample UI */}
-            <div className="sticky-bottom-bar">
-              <div className="sticky-bottom-container">
-                <div className="sticky-price-col">
-                  <span className="sticky-price-label">Total Payable</span>
-                  <span className="sticky-price-val">{formattedAmount}</span>
+            {/* 5. Green Action Button (Replaces Payment Method section as requested) */}
+            <button
+              className="green-action-btn"
+              onClick={handlePayment}
+              disabled={verifying || timeLeft <= 0}
+            >
+              {verifying ? (
+                <>
+                  <div className="spinner-ring" style={{ width: 18, height: 18, borderWidth: 2, margin: 0, borderTopColor: '#fff' }}></div>
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <span>Pay {formattedAmount}</span>
+              )}
+            </button>
+
+            {/* Security Seals below button matching screenshot */}
+            <div className="supports-methods-txt">
+              <Lock size={11} />
+              <span>Supports UPI, Cards, Netbanking & Wallets</span>
+            </div>
+
+            <div className="pci-security-pill">
+              <ShieldCheck size={14} color="var(--brand-purple)" />
+              <span>Protected by Razorpay PCI-DSS Level 1 Security</span>
+            </div>
+
+            {/* 6. Frequently Asked Questions Accordion matching Screenshot */}
+            <div style={{ marginTop: 24 }}>
+              <span className="faq-header-label">FREQUENTLY ASKED QUESTIONS</span>
+
+              <div className="faq-box-item" onClick={() => setFaqOpen(faqOpen === 1 ? null : 1)}>
+                <div className="faq-q-row">
+                  <span className="faq-q-txt">Is my payment secure?</span>
+                  <ChevronDown size={14} style={{ transform: faqOpen === 1 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                 </div>
-                <button
-                  className="sticky-pay-btn"
-                  onClick={handlePayment}
-                  disabled={verifying || timeLeft <= 0}
-                >
-                  {verifying ? 'Processing...' : 'Pay Now'}
-                </button>
+                {faqOpen === 1 && (
+                  <p className="faq-a-txt">
+                    Yes. Your transaction is directly processed through Razorpay PCI-DSS compliant bank servers. Your credentials are never stored.
+                  </p>
+                )}
+              </div>
+
+              <div className="faq-box-item" onClick={() => setFaqOpen(faqOpen === 2 ? null : 2)}>
+                <div className="faq-q-row">
+                  <span className="faq-q-txt">How long does verification take?</span>
+                  <ChevronDown size={14} style={{ transform: faqOpen === 2 ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </div>
+                {faqOpen === 2 && (
+                  <p className="faq-a-txt">
+                    Verification is instant. Upon payment completion, a digital receipt is issued immediately to both you and your property manager.
+                  </p>
+                )}
               </div>
             </div>
           </>
         )}
 
-        <div className="footer">
-          <p>© {new Date().getFullYear()} Nestora SaaS. All rights reserved.</p>
-          <p style={{ marginTop: 4 }}>Secured by Razorpay PCI-DSS Level 1 Encryption.</p>
+        {/* ── Footer Matching Screenshot ── */}
+        <div className="mock-footer">
+          <div className="mock-footer-brand">
+            <div style={{ width: 14, height: 14, borderRadius: 4, background: '#22C55E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Home size={9} color="#fff" />
+            </div>
+            <span>© {new Date().getFullYear()} Nestora. All rights reserved.</span>
+          </div>
+          <p>Powered by Nestora SaaS — Simplifying Property Management.</p>
         </div>
 
       </div>
