@@ -369,53 +369,68 @@ export default function App() {
               </button>
             </div>
           ) : (
-            /* PAYMENT CHECKOUT VIEW */
+            /* BANK-GRADE TRUSTABLE PAYMENT CHECKOUT VIEW */
             <>
+              {/* Bank Trust Security Header Bar */}
+              <div className="bank-trust-bar">
+                <div className="bank-trust-item">
+                  <ShieldCheck size={13} color="var(--success)" />
+                  <span>Verified Merchant</span>
+                </div>
+                <div className="bank-trust-item">
+                  <Lock size={11} color="var(--success)" />
+                  <span>256-Bit SSL Encrypted</span>
+                </div>
+              </div>
+
               {/* Countdown Timer */}
               <div className={`timer-bar ${isUrgent ? 'urgent' : ''}`}>
                 <div className="timer-label">
                   <Clock size={13} color={isUrgent ? 'var(--error)' : 'var(--text-secondary)'} />
-                  <span>Secure Checkout Session expires in:</span>
+                  <span>Secure session expires in:</span>
                 </div>
                 <div className={`timer-badge ${isUrgent ? 'urgent' : ''}`}>
                   {formatTime(timeLeft)}
                 </div>
               </div>
 
-              {/* Property Details */}
-              <div className="property-header">
+              {/* Official Merchant Header Card */}
+              <div className="merchant-trust-card">
                 {transaction?.metadata?.property_logo ? (
-                  <img src={transaction.metadata.property_logo} alt="property" className="property-logo" />
+                  <img src={transaction.metadata.property_logo} alt="merchant" className="merchant-badge-logo" />
                 ) : (
-                  <div className="property-logo-placeholder">
+                  <div className="merchant-badge-logo">
                     {transaction?.metadata?.property_name?.charAt(0) || 'P'}
                   </div>
                 )}
-                <div>
-                  <h2 className="property-name">{transaction?.metadata?.property_name || 'Hostel / PG Partner'}</h2>
-                  <div className="copy-ref" onClick={copyPaymentToken}>
-                    <span>Ref: <strong>{transaction?.payment_token?.substring(0, 10)}...</strong></span>
+                <div className="merchant-info">
+                  <div className="merchant-title-row">
+                    <h2 className="merchant-name-txt">{transaction?.metadata?.property_name || 'Hostel / PG Partner'}</h2>
+                    <ShieldCheck size={14} color="var(--success)" />
+                  </div>
+                  <div className="copy-ref" onClick={copyPaymentToken} style={{ marginTop: 4 }}>
+                    <span>Official Order Ref: <strong>{transaction?.payment_token?.substring(0, 12)}...</strong></span>
                     <Copy size={9} color="var(--primary)" />
-                    {copied && <span style={{ color: 'var(--success)', fontSize: 8, marginLeft: 2 }}>Copied</span>}
+                    {copied && <span style={{ color: 'var(--success)', fontSize: 9, marginLeft: 2 }}>Copied</span>}
                   </div>
                 </div>
               </div>
 
-              {/* Amount Display */}
+              {/* Amount hero view */}
               <div className="amount-hero">
-                <span className="amount-label">Amount Payable</span>
+                <span className="amount-label">Verified Amount Payable</span>
                 <h1 className="amount-value">{formattedAmount}</h1>
                 <div className="purpose-chip">
                   <Zap size={11} color="var(--primary)" />
-                  <span>{transaction?.metadata?.purpose || 'Rent Payment'}</span>
+                  <span>{transaction?.metadata?.purpose || 'Hostel Rent Payment'}</span>
                 </div>
               </div>
 
-              {/* Resident Details */}
+              {/* Verified Resident Details Card */}
               <div className="glass-card-sm">
                 <div className="detail-header">
                   <div className="status-dot"></div>
-                  <span className="verified-label">Resident Verified</span>
+                  <span className="verified-label">Resident Verification</span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-key">Resident Name</span>
@@ -431,47 +446,55 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Invoice Breakdown */}
-              <div className="glass-card-sm" style={{ border: 'none', background: 'transparent', padding: '0 4px' }}>
-                <span className="invoice-title">Invoice Details</span>
-                <div className="detail-row">
-                  <span className="detail-key">{transaction?.metadata?.purpose || 'Rent Payment'}</span>
-                  <span className="detail-val">{formattedAmount}</span>
+              {/* Trust Badges Grid */}
+              <div className="trust-badges-grid">
+                <div className="trust-badge-card">
+                  <ShieldCheck size={14} color="var(--success)" />
+                  <span>PCI-DSS Level 1</span>
                 </div>
-                <div className="detail-row">
-                  <span className="detail-key">Gateway & Processing Fee</span>
-                  <span className="detail-val free-badge">FREE (₹0)</span>
+                <div className="trust-badge-card">
+                  <Zap size={14} color="var(--primary)" />
+                  <span>Instant Receipt</span>
                 </div>
-                <div className="invoice-total">
-                  <span className="invoice-total-label">Total Amount Payable</span>
-                  <span className="invoice-total-value">{formattedAmount}</span>
+                <div className="trust-badge-card">
+                  <Lock size={14} color="var(--success)" />
+                  <span>Direct Settlement</span>
+                </div>
+                <div className="trust-badge-card">
+                  <Receipt size={14} color="var(--primary)" />
+                  <span>₹0 Fee (100% Free)</span>
                 </div>
               </div>
 
-              <button className="pay-btn" onClick={handlePayment} disabled={verifying || timeLeft <= 0}>
+              {/* Bank-Grade Pay Button */}
+              <button className="pay-btn-trustable" onClick={handlePayment} disabled={verifying || timeLeft <= 0}>
                 {verifying ? (
                   <>
                     <div className="pay-btn-spinner"></div>
-                    <span>Processing Secure Checkout...</span>
+                    <span>Initializing Secure Gateway...</span>
                   </>
                 ) : (
                   <>
-                    {/* Simplified Razorpay stylized logo */}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                    </svg>
-                    <span>Pay {formattedAmount} with Razorpay</span>
+                    <Lock size={16} />
+                    <span>Pay {formattedAmount} via Razorpay Secure</span>
                   </>
                 )}
               </button>
 
-              <div className="methods-row">
-                <p>Supports UPI, Cards, Netbanking & Wallets</p>
+              {/* Payment Methods Badges */}
+              <div className="methods-pills-row">
+                <span className="method-pill">GPay</span>
+                <span className="method-pill">PhonePe</span>
+                <span className="method-pill">Paytm</span>
+                <span className="method-pill">UPI</span>
+                <span className="method-pill">Visa / Mastercard</span>
+                <span className="method-pill">RuPay</span>
+                <span className="method-pill">NetBanking</span>
               </div>
 
-              <div className="security-seal">
-                <ShieldCheck size={12} color="var(--text-muted)" />
-                <span>Protected by Razorpay PCI-DSS Level 1 Security</span>
+              <div className="security-seal" style={{ marginTop: 12 }}>
+                <ShieldCheck size={13} color="var(--success)" />
+                <span>Encrypted Direct Checkout · Powered by Razorpay & Nestora</span>
               </div>
             </>
           )}
