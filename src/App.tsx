@@ -209,7 +209,8 @@ export default function App() {
         prefill: {
           name: transaction.metadata?.resident_name || '',
           email: transaction.metadata?.resident_email || '',
-          contact: transaction.metadata?.resident_phone || ''
+          contact: transaction.metadata?.resident_phone || '',
+          method: 'upi'
         },
         theme: {
           color: '#6F55F9' // Nestora Violet
