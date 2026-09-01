@@ -1,21 +1,28 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import {
-  ShieldCheck, AlertCircle, Lock, Zap, Copy,
-  ChevronDown, Clock, RefreshCw, Sun, Moon, Receipt
+  ShieldCheck,
+  Lock,
+  Clock,
+  Copy,
+  Receipt,
+  AlertCircle,
+  RefreshCw,
+  Sun,
+  Moon,
+  ArrowLeft,
+  CreditCard,
+  Building2,
+  CheckCircle2,
+  Home,
+  User,
+  Zap,
+  ShoppingBag
 } from 'lucide-react';
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://xxx.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyXXX...';
 
-// Config variables with support for both Vite and Expo env prefixing
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-// Create a Supabase Client
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 interface TransactionSession {
@@ -37,32 +44,35 @@ interface TransactionSession {
   };
 }
 
-export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [transaction, setTransaction] = useState<TransactionSession | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [faqOpen, setFaqOpen] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 mins countdown fallback
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
-  // Theme Toggler
+export function App() {
+  const [transaction, setTransaction] = useState<(TransactionSession & { razorpay_key_id?: string }) | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(86400);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<'card' | 'bank'>('card');
+
   useEffect(() => {
     if (isDarkMode) {
-      document.body.classList.remove('light-mode');
+      document.body.classList.add('dark-mode');
     } else {
-      document.body.classList.add('light-mode');
+      document.body.classList.remove('dark-mode');
     }
   }, [isDarkMode]);
 
-  // Extract payment token from URL query params or path (supports /?token=xyz or /p/xyz)
   const getTokenFromURL = () => {
     const params = new URLSearchParams(window.location.search);
     const queryToken = params.get('token') || params.get('p');
     if (queryToken) return queryToken;
 
-    // Support clean URL path routing /p/:token
     const pathParts = window.location.pathname.split('/');
     const pIndex = pathParts.indexOf('p');
     if (pIndex !== -1 && pathParts[pIndex + 1]) {
@@ -76,7 +86,6 @@ export default function App() {
       setLoading(true);
       setError(null);
 
-      // Invoke Supabase Edge Function to fetch token details safely
       const { data, error: funcError } = await supabase.functions.invoke('tenant-pay-get-session', {
         body: { token: tokenStr }
       });
@@ -107,7 +116,6 @@ export default function App() {
 
       setTransaction(mappedTx);
 
-      // Setup exact countdown timer based on expiry time if present
       if (data.expires_at) {
         const remaining = Math.max(0, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000));
         setTimeLeft(remaining);
@@ -129,7 +137,6 @@ export default function App() {
     }
   }, []);
 
-  // Timer countdown
   useEffect(() => {
     if (loading || error || timeLeft <= 0) return;
     const timer = setInterval(() => {
@@ -145,9 +152,12 @@ export default function App() {
     return () => clearInterval(timer);
   }, [loading, error, timeLeft]);
 
-  // Helper to load external checkout script dynamically
-  const loadRazorpayScript = () => {
+  const loadRazorpaySDK = (): Promise<boolean> => {
     return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.onload = () => resolve(true);
@@ -156,65 +166,54 @@ export default function App() {
     });
   };
 
-  // Trigger Razorpay Checkout overlay
   const handlePayment = async () => {
-    // Cast to include our extended fields
-    const tx = transaction as TransactionSession & { razorpay_key_id?: string };
-    if (!tx || !tx.id || !tx.razorpay_key_id) {
-      setError('Payment session is incomplete. Please refresh the page.');
-      return;
-    }
+    if (!transaction) return;
 
     try {
       setVerifying(true);
-      const isScriptLoaded = await loadRazorpayScript();
-      if (!isScriptLoaded) {
-        throw new Error('Razorpay Checkout failed to load. Please check your internet connection.');
+      const sdkLoaded = await loadRazorpaySDK();
+      if (!sdkLoaded) {
+        throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
       }
 
       const options = {
-        key: tx.razorpay_key_id,
-        amount: Math.round(tx.amount * 100), // convert back to paise for Razorpay config
-        currency: tx.currency,
-        name: tx.metadata?.property_name || 'Nestora Property',
-        description: (tx.metadata as any)?.room_info 
-          ? `${tx.metadata?.purpose || 'Rent Payment'} | ${(tx.metadata as any).room_info}` 
-          : tx.metadata?.purpose || 'Rent Payment',
-        image: tx.metadata?.property_logo || '/logo-light.png',
-        order_id: tx.id,
+        key: transaction.razorpay_key_id,
+        amount: Math.round(transaction.amount * 100),
+        currency: transaction.currency || 'INR',
+        name: transaction.metadata?.property_name || 'Nestora Pay',
+        description: transaction.metadata?.purpose || 'Hostel Rent Payment',
+        image: transaction.metadata?.property_logo || undefined,
+        order_id: transaction.id,
+        prefill: {
+          name: transaction.metadata?.resident_name || '',
+          email: transaction.metadata?.resident_email || '',
+          contact: transaction.metadata?.resident_phone || ''
+        },
+        theme: {
+          color: '#22C55E'
+        },
         handler: async function (response: any) {
-          // Payment succeeded in overlay, verify on backend
+          setVerifying(true);
           try {
-            setVerifying(true);
             const { data: verifyData, error: verifyError } = await supabase.functions.invoke('tenant-pay-verify', {
               body: {
+                payment_token: transaction.payment_token,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                token: tx.payment_token
+                razorpay_signature: response.razorpay_signature
               }
             });
 
-            if (verifyError || !verifyData) {
-              throw new Error(verifyError?.message || 'Payment verification failed.');
+            if (verifyError || !verifyData || !verifyData.success) {
+              throw new Error(verifyData?.error || 'Payment verification failed.');
             }
 
-            // Sync successful status
             setTransaction(prev => prev ? { ...prev, status: 'PAID' } : null);
-          } catch (verifyErr: any) {
-            setError(verifyErr.message || 'Payment was successful but verification failed. Please contact your property manager.');
+          } catch (err: any) {
+            setError(err.message || 'Verification failed. Please contact your hostel owner.');
           } finally {
             setVerifying(false);
           }
-        },
-        prefill: {
-          name: tx.metadata?.resident_name || '',
-          email: tx.metadata?.resident_email || '',
-          contact: tx.metadata?.resident_phone || '',
-          method: 'upi'
-        },
-        theme: {
-          color: '#6F55F9' // Nestora Violet
         },
         modal: {
           ondismiss: function () {
@@ -238,13 +237,6 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // State Views
   if (loading) {
     return (
       <div className="center-state">
@@ -264,7 +256,7 @@ export default function App() {
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', maxWidth: 280, fontSize: 12, lineHeight: 1.4, marginBottom: 20 }}>
           {error}
         </p>
-        <button className="pay-btn" onClick={() => window.location.reload()} style={{ width: 'auto', padding: '0 20px' }}>
+        <button className="sticky-pay-btn" onClick={() => window.location.reload()} style={{ padding: '12px 24px' }}>
           <RefreshCw size={14} />
           Retry Connection
         </button>
@@ -278,261 +270,161 @@ export default function App() {
     maximumFractionDigits: 0
   }).format(transaction?.amount || 0);
 
-  const isUrgent = timeLeft < 180; // less than 3 mins
   const isPaid = transaction?.status === 'PAID';
 
   return (
     <div className="page-wrapper">
-      {/* Ambient blobs */}
-      <div className="blob blob-1"></div>
-      <div className="blob blob-2"></div>
-      <div className="blob blob-3"></div>
+      <div className="page-container">
 
-      <div className="page-container" style={{ position: 'relative', zIndex: 1 }}>
-
-        {/* Top Header */}
-        <div className="top-header">
-          <div className="brand-badge">
-            <div className="brand-logo-placeholder">N</div>
-            <span className="brand-name">Nestora Pay</span>
-            <div className="brand-verified">
-              <ShieldCheck size={11} color="var(--success)" />
-              <span className="verified-label" style={{ color: 'var(--success)', textTransform: 'none', letterSpacing: 'normal' }}>Verified Portal</span>
-            </div>
+        {/* Top Sample Navigation Header */}
+        <div className="sample-header">
+          <div className="sample-back-btn" onClick={() => window.history.back()}>
+            <ArrowLeft size={16} color="var(--text-primary)" />
           </div>
-          <div className="header-actions">
-            <div className="theme-toggle" onClick={() => setIsDarkMode(!isDarkMode)}>
-              {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
-            </div>
-            <div className="ssl-badge">
-              <Lock size={10} color="var(--success)" />
-              <span>SSL Secure</span>
-            </div>
+          <h1 className="sample-title">{isPaid ? 'Order Details' : 'Payment Method'}</h1>
+          <div className="sample-icon-btn" onClick={() => setIsDarkMode(!isDarkMode)}>
+            {isDarkMode ? <Sun size={16} color="var(--text-primary)" /> : <Moon size={16} color="var(--text-primary)" />}
           </div>
         </div>
 
-        {/* Success / Invoice Card */}
-        <div className="glass-card">
-          {isPaid ? (
-            /* SUCCESS VIEW */
-            <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }} className="glass-card-success">
-              {/* Confetti Container */}
-              <div className="confetti-container">
-                {Array.from({ length: 60 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="confetti"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${-10 + Math.random() * -40}px`,
-                      background: ['#6F55F9', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#34D399'][Math.floor(Math.random() * 6)],
-                      width: `${6 + Math.random() * 8}px`,
-                      height: `${6 + Math.random() * 8}px`,
-                      borderRadius: Math.random() > 0.5 ? '50%' : '3px',
-                      animationDelay: `${0.2 + Math.random() * 1.5}s`,
-                      animationDuration: `${2.5 + Math.random() * 2}s`,
-                    }}
-                  />
-                ))}
+        {isPaid ? (
+          /* SAMPLE SCREEN 2: PAYMENT SUCCESSFUL VIEW */
+          <>
+            <div className="sample-card" style={{ textAlign: 'center', padding: '28px 20px' }}>
+              <div style={{
+                width: 68, height: 68, borderRadius: '50%',
+                background: 'var(--success-light)', border: '1px solid var(--success-border)',
+                display: 'flex', alignItems: 'center', justifyCenter: 'center', margin: '0 auto 16px'
+              }}>
+                <CheckCircle2 size={36} color="var(--success)" style={{ margin: 'auto' }} />
               </div>
 
-              {/* Animated ring + check icon */}
-              <div className="icon-ring">
-                <svg className="ring-svg" viewBox="0 0 88 88">
-                  <circle className="ring-track" cx="44" cy="44" r="39" />
-                  <circle className="ring-fill" cx="44" cy="44" r="39" />
-                </svg>
-                <div className="icon-inner">
-                  <svg className="check-svg" viewBox="0 0 34 34">
-                    <path className="check-path" d="M8 17l7 7 11-11" />
-                  </svg>
+              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Payment Successful</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 20 }}>
+                Your rent payment has been received and confirmed. Link is now closed.
+              </p>
+
+              {/* Payment Details Table matching Sample */}
+              <span className="section-label" style={{ textAlign: 'left' }}>Payment Details</span>
+              <div style={{ background: 'var(--card-dark-bg)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+                <div className="detail-table-row">
+                  <span className="detail-table-key">Transaction ID</span>
+                  <span className="detail-table-val">{transaction?.payment_token?.substring(0, 12)}...</span>
+                </div>
+                <div className="detail-table-row">
+                  <span className="detail-table-key">Date</span>
+                  <span className="detail-table-val">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </div>
+                <div className="detail-table-row">
+                  <span className="detail-table-key">Type of Transaction</span>
+                  <span className="detail-table-val">Razorpay Gateway</span>
+                </div>
+                <div className="detail-table-row">
+                  <span className="detail-table-key">Total</span>
+                  <span className="detail-table-val" style={{ color: 'var(--primary)', fontWeight: 900 }}>{formattedAmount}</span>
+                </div>
+                <div className="detail-table-row">
+                  <span className="detail-table-key">Status</span>
+                  <span className="status-badge-green">
+                    <CheckCircle2 size={12} /> Success
+                  </span>
                 </div>
               </div>
-
-              <div className="animated-badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                <Lock size={12} style={{ marginRight: 5 }} />
-                Already Paid — Link Expired
-              </div>
-
-              <h1 className="success-hero-title">Payment Already Completed</h1>
-              <p className="success-hero-subtitle">This payment link has already been completed. The link is now expired and no longer active. Thank you! 🎉</p>
-
-              <div className="ref-box-modern">
-                <div className="ref-label-modern">Payment Reference</div>
-                <div className="ref-id-modern">{transaction?.payment_token?.substring(0, 14)}...</div>
-              </div>
-
-              <button className="btn-modern" onClick={() => window.print()}>
-                <Receipt size={18} />
-                Download Receipt
-                <span className="btn-arrow" style={{ marginLeft: '4px' }}>→</span>
-              </button>
             </div>
-          ) : (
-            /* BANK-GRADE TRUSTABLE PAYMENT CHECKOUT VIEW */
-            <>
-              {/* Bank Trust Security Header Bar */}
-              <div className="bank-trust-bar">
-                <div className="bank-trust-item">
-                  <ShieldCheck size={13} color="var(--success)" />
-                  <span>Verified Merchant</span>
-                </div>
-                <div className="bank-trust-item">
-                  <Lock size={11} color="var(--success)" />
-                  <span>256-Bit SSL Encrypted</span>
-                </div>
-              </div>
 
-              {/* Countdown Timer */}
-              <div className={`timer-bar ${isUrgent ? 'urgent' : ''}`}>
-                <div className="timer-label">
-                  <Clock size={13} color={isUrgent ? 'var(--error)' : 'var(--text-secondary)'} />
-                  <span>Secure session expires in:</span>
-                </div>
-                <div className={`timer-badge ${isUrgent ? 'urgent' : ''}`}>
-                  {formatTime(timeLeft)}
-                </div>
-              </div>
-
-              {/* Official Merchant Header Card */}
-              <div className="merchant-trust-card">
+            <button className="sticky-pay-btn" onClick={() => window.print()} style={{ width: '100%', justifyContent: 'center', borderRadius: '16px' }}>
+              <Receipt size={16} />
+              Download Receipt
+            </button>
+          </>
+        ) : (
+          /* SAMPLE SCREEN 1: CHECKOUT VIEW */
+          <>
+            {/* Card 1: Product / Merchant Card matching Sample */}
+            <div className="sample-card">
+              <div className="merchant-item-row">
                 {transaction?.metadata?.property_logo ? (
-                  <img src={transaction.metadata.property_logo} alt="merchant" className="merchant-badge-logo" />
+                  <img src={transaction.metadata.property_logo} alt="property" className="merchant-item-img" />
                 ) : (
-                  <div className="merchant-badge-logo">
-                    {transaction?.metadata?.property_name?.charAt(0) || 'P'}
+                  <div className="merchant-item-placeholder">
+                    {transaction?.metadata?.property_name?.charAt(0) || 'H'}
                   </div>
                 )}
-                <div className="merchant-info">
-                  <div className="merchant-title-row">
-                    <h2 className="merchant-name-txt">{transaction?.metadata?.property_name || 'Hostel / PG Partner'}</h2>
-                    <ShieldCheck size={14} color="var(--success)" />
-                  </div>
-                  <div className="copy-ref" onClick={copyPaymentToken} style={{ marginTop: 4 }}>
-                    <span>Official Order Ref: <strong>{transaction?.payment_token?.substring(0, 12)}...</strong></span>
-                    <Copy size={9} color="var(--primary)" />
-                    {copied && <span style={{ color: 'var(--success)', fontSize: 9, marginLeft: 2 }}>Copied</span>}
-                  </div>
+                <div className="merchant-item-info">
+                  <h2 className="merchant-item-title">{transaction?.metadata?.property_name || 'Good Shepherd Mens PG'}</h2>
+                  <p className="merchant-item-desc">{transaction?.metadata?.purpose || 'Hostel Rent Payment'} · Verified Partner</p>
+                  <span className="merchant-item-price">{formattedAmount}</span>
                 </div>
               </div>
-
-              {/* Amount hero view */}
-              <div className="amount-hero">
-                <span className="amount-label">Verified Amount Payable</span>
-                <h1 className="amount-value">{formattedAmount}</h1>
-                <div className="purpose-chip">
-                  <Zap size={11} color="var(--primary)" />
-                  <span>{transaction?.metadata?.purpose || 'Hostel Rent Payment'}</span>
-                </div>
-              </div>
-
-              {/* Verified Resident Details Card */}
-              <div className="glass-card-sm">
-                <div className="detail-header">
-                  <div className="status-dot"></div>
-                  <span className="verified-label">Resident Verification</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Resident Name</span>
-                  <span className="detail-val">{transaction?.metadata?.resident_name}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Room / Cot No</span>
-                  <span className="detail-val">{transaction?.metadata?.room_number || 'N/A'}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Mobile Number</span>
-                  <span className="detail-val">{transaction?.metadata?.resident_phone}</span>
-                </div>
-              </div>
-
-              {/* Trust Badges Grid */}
-              <div className="trust-badges-grid">
-                <div className="trust-badge-card">
-                  <ShieldCheck size={14} color="var(--success)" />
-                  <span>PCI-DSS Level 1</span>
-                </div>
-                <div className="trust-badge-card">
-                  <Zap size={14} color="var(--primary)" />
-                  <span>Instant Receipt</span>
-                </div>
-                <div className="trust-badge-card">
-                  <Lock size={14} color="var(--success)" />
-                  <span>Direct Settlement</span>
-                </div>
-                <div className="trust-badge-card">
-                  <Receipt size={14} color="var(--primary)" />
-                  <span>₹0 Fee (100% Free)</span>
-                </div>
-              </div>
-
-              {/* Bank-Grade Pay Button */}
-              <button className="pay-btn-trustable" onClick={handlePayment} disabled={verifying || timeLeft <= 0}>
-                {verifying ? (
-                  <>
-                    <div className="pay-btn-spinner"></div>
-                    <span>Initializing Secure Gateway...</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock size={16} />
-                    <span>Pay {formattedAmount} via Razorpay Secure</span>
-                  </>
-                )}
-              </button>
-
-              {/* Payment Methods Badges */}
-              <div className="methods-pills-row">
-                <span className="method-pill">GPay</span>
-                <span className="method-pill">PhonePe</span>
-                <span className="method-pill">Paytm</span>
-                <span className="method-pill">UPI</span>
-                <span className="method-pill">Visa / Mastercard</span>
-                <span className="method-pill">RuPay</span>
-                <span className="method-pill">NetBanking</span>
-              </div>
-
-              <div className="security-seal" style={{ marginTop: 12 }}>
-                <ShieldCheck size={13} color="var(--success)" />
-                <span>Encrypted Direct Checkout · Powered by Razorpay & Nestora</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Simple Web App FAQ section */}
-        <div className="faq-section">
-          <span className="faq-section-label">Frequently Asked Questions</span>
-
-          <div className={`faq-item ${faqOpen === 1 ? 'open' : ''}`} onClick={() => setFaqOpen(faqOpen === 1 ? null : 1)}>
-            <div className="faq-question">
-              <span className="faq-q-text">Is my payment secure?</span>
-              <ChevronDown size={12} className="faq-chevron" />
             </div>
-            {faqOpen === 1 && (
-              <div className="faq-answer">
-                Yes. Your transaction is directly processed through Razorpay's PCI-DSS compliant secure servers. Nestora never stores or views your card, UPI PIN, or netbanking credentials.
-              </div>
-            )}
-          </div>
 
-          <div className={`faq-item ${faqOpen === 2 ? 'open' : ''}`} onClick={() => setFaqOpen(faqOpen === 2 ? null : 2)}>
-            <div className="faq-question">
-              <span className="faq-q-text">How long does verification take?</span>
-              <ChevronDown size={12} className="faq-chevron" />
+            {/* Card 2: Deliver To / Resident Details matching Sample */}
+            <div className="sample-card">
+              <span className="section-label">Resident Details</span>
+              <div className="resident-delivery-card">
+                <div className="resident-delivery-info">
+                  <h3 className="resident-delivery-name">{transaction?.metadata?.resident_name || 'Resident'}</h3>
+                  <p className="resident-delivery-sub">
+                    {transaction?.metadata?.room_number || 'Room N/A'} · {transaction?.metadata?.resident_phone || 'Mobile N/A'}
+                  </p>
+                </div>
+                <div className="resident-map-badge">
+                  <Home size={16} />
+                  <span>ROOM</span>
+                </div>
+              </div>
             </div>
-            {faqOpen === 2 && (
-              <div className="faq-answer">
-                Verification happens instantly. Once you complete the payment on the Razorpay gateway, this page will auto-update to show your receipt. Your property manager receives a real-time notification immediately.
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Footer */}
+            {/* Card 3: Payment Method Options Grid matching Sample */}
+            <div className="sample-card">
+              <span className="section-label">Payment Method</span>
+              <div className="payment-methods-grid">
+                <div
+                  className={`method-card ${selectedMethod === 'card' ? 'selected' : ''}`}
+                  onClick={() => setSelectedMethod('card')}
+                >
+                  <div className="method-card-header">
+                    <CreditCard size={15} color={selectedMethod === 'card' ? 'var(--primary)' : 'var(--text-secondary)'} />
+                    <span className="method-card-title">Cards / UPI</span>
+                  </div>
+                  <p className="method-card-desc">Pay securely using credit/debit card, UPI or Netbanking.</p>
+                </div>
+
+                <div
+                  className={`method-card ${selectedMethod === 'bank' ? 'selected' : ''}`}
+                  onClick={() => setSelectedMethod('bank')}
+                >
+                  <div className="method-card-header">
+                    <Building2 size={15} color={selectedMethod === 'bank' ? 'var(--primary)' : 'var(--text-secondary)'} />
+                    <span className="method-card-title">Bank Transfer</span>
+                  </div>
+                  <p className="method-card-desc">Transfer money directly to your hostel account.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating Sticky Bottom Bar matching Sample UI */}
+            <div className="sticky-bottom-bar">
+              <div className="sticky-bottom-container">
+                <div className="sticky-price-col">
+                  <span className="sticky-price-label">Total Payable</span>
+                  <span className="sticky-price-val">{formattedAmount}</span>
+                </div>
+                <button
+                  className="sticky-pay-btn"
+                  onClick={handlePayment}
+                  disabled={verifying || timeLeft <= 0}
+                >
+                  {verifying ? 'Processing...' : 'Pay Now'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="footer">
-          <p>© {new Date().getFullYear()} Nestora. All rights reserved.</p>
-          <p style={{ marginTop: 4 }}>Powered by Nestora SaaS — Simplifying Property Management.</p>
+          <p>© {new Date().getFullYear()} Nestora SaaS. All rights reserved.</p>
+          <p style={{ marginTop: 4 }}>Secured by Razorpay PCI-DSS Level 1 Encryption.</p>
         </div>
 
       </div>
