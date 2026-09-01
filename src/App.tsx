@@ -263,7 +263,12 @@ export default function App() {
 
   return (
     <div className="page-wrapper">
-      <div className="page-container">
+      {/* Ambient blobs */}
+      <div className="blob blob-1"></div>
+      <div className="blob blob-2"></div>
+      <div className="blob blob-3"></div>
+
+      <div className="page-container" style={{ position: 'relative', zIndex: 1 }}>
         
         {/* Top Header */}
         <div className="top-header">
@@ -290,42 +295,57 @@ export default function App() {
         <div className="glass-card">
           {isPaid ? (
             /* SUCCESS VIEW */
-            <div style={{ textAlign: 'center' }}>
-              <div className="success-circle">
-                <CheckCircle2 size={32} color="var(--success)" />
-              </div>
-              <h1 className="success-title">Payment Successful</h1>
-              <p className="success-subtitle">Your transaction has been securely processed and credited to your property manager.</p>
-
-              <div className="glass-card-sm" style={{ textAlign: 'left', marginBottom: 16 }}>
-                <div className="receipt-header">
-                  <Receipt size={12} color="var(--primary)" />
-                  <span className="receipt-title">Payment Receipt</span>
-                  <span className="paid-badge" style={{ marginLeft: 'auto' }}>PAID</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Property Name</span>
-                  <span className="detail-val">{transaction?.metadata?.property_name || 'Nestora Property'}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Resident Name</span>
-                  <span className="detail-val">{transaction?.metadata?.resident_name}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Paid Amount</span>
-                  <span className="detail-val" style={{ color: 'var(--success)', fontWeight: 800 }}>{formattedAmount}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-key">Receipt Reference</span>
-                  <span className="detail-val" style={{ fontFamily: 'monospace' }}>
-                    {transaction?.payment_token.substring(0, 14)}...
-                  </span>
-                </div>
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 10 }} className="glass-card-success">
+              {/* Confetti Container */}
+              <div className="confetti-container">
+                {Array.from({ length: 60 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="confetti"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${-10 + Math.random() * -40}px`,
+                      background: ['#6F55F9','#10B981','#F59E0B','#3B82F6','#EC4899','#34D399'][Math.floor(Math.random() * 6)],
+                      width: `${6 + Math.random() * 8}px`,
+                      height: `${6 + Math.random() * 8}px`,
+                      borderRadius: Math.random() > 0.5 ? '50%' : '3px',
+                      animationDelay: `${0.2 + Math.random() * 1.5}s`,
+                      animationDuration: `${2.5 + Math.random() * 2}s`,
+                    }}
+                  />
+                ))}
               </div>
 
-              <button className="pay-btn" onClick={() => window.print()} style={{ background: 'var(--card-dark-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)' }}>
-                <Receipt size={14} />
+              {/* Animated ring + check icon */}
+              <div className="icon-ring">
+                <svg className="ring-svg" viewBox="0 0 88 88">
+                  <circle className="ring-track" cx="44" cy="44" r="39"/>
+                  <circle className="ring-fill" cx="44" cy="44" r="39"/>
+                </svg>
+                <div className="icon-inner">
+                  <svg className="check-svg" viewBox="0 0 34 34">
+                    <path className="check-path" d="M8 17l7 7 11-11"/>
+                  </svg>
+                </div>
+              </div>
+
+              <div className="animated-badge">
+                <span className="badge-dot"></span>
+                Payment Confirmed
+              </div>
+
+              <h1 className="success-hero-title">Payment Successful!</h1>
+              <p className="success-hero-subtitle">Your rent payment has been received and confirmed by your hostel. You're all set! 🎉</p>
+
+              <div className="ref-box-modern">
+                <div className="ref-label-modern">Payment Reference</div>
+                <div className="ref-id-modern">{transaction?.payment_token.substring(0, 14)}...</div>
+              </div>
+
+              <button className="btn-modern" onClick={() => window.print()}>
+                <Receipt size={18} />
                 Download Receipt
+                <span className="btn-arrow" style={{ marginLeft: '4px' }}>→</span>
               </button>
             </div>
           ) : (
