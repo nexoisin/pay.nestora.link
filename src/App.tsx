@@ -84,10 +84,11 @@ export default function App() {
         throw new Error(funcError?.message || data?.error || 'Failed to retrieve payment link details.');
       }
 
-      const mappedTx: TransactionSession & { payment_session_id?: string; cf_order_id?: string } = {
+      const mappedTx: TransactionSession & { payment_session_id?: string; cf_order_id?: string; cashfree_link_url?: string } = {
         id: data.order_id || data.razorpay_order_id || '',
         payment_session_id: data.payment_session_id,
         cf_order_id: data.cf_order_id || data.order_id,
+        cashfree_link_url: data.cashfree_link_url,
         amount: (data.amount_paise || 0) / 100,
         currency: data.currency || 'INR',
         status: data.is_paid ? 'PAID' : 'PENDING',
@@ -162,6 +163,14 @@ export default function App() {
 
     try {
       setVerifying(true);
+
+      // 1. Direct Cashfree Link URL Redirect
+      if (transaction.cashfree_link_url) {
+        window.location.href = transaction.cashfree_link_url;
+        return;
+      }
+
+      // 2. Cashfree Drop-in JS SDK Checkout (if payment_session_id present)
       const sdkLoaded = await loadCashfreeSDK();
       if (!sdkLoaded || !window.Cashfree) {
         throw new Error('Cashfree SDK failed to load. Please check your internet connection.');
