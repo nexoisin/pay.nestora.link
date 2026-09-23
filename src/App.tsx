@@ -58,15 +58,31 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  const [isFailed, setIsFailed] = useState(false);
+
   const getTokenFromURL = () => {
     const params = new URLSearchParams(window.location.search);
-    const queryToken = params.get('token') || params.get('p');
+    const queryToken =
+      params.get('order_id') ||
+      params.get('link_id') ||
+      params.get('cashfree_order_id') ||
+      params.get('token') ||
+      params.get('p') ||
+      params.get('cf_id') ||
+      params.get('id');
+
     if (queryToken) return queryToken;
 
-    const pathParts = window.location.pathname.split('/');
-    const pIndex = pathParts.indexOf('p');
-    if (pIndex !== -1 && pathParts[pIndex + 1]) {
-      return pathParts[pIndex + 1];
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0) {
+      const lastPart = pathParts[pathParts.length - 1];
+      if (lastPart !== 'payment-success' && lastPart !== 'payment-failed' && lastPart !== 'p') {
+        return lastPart;
+      }
+      const pIdx = pathParts.indexOf('p');
+      if (pIdx !== -1 && pathParts[pIdx + 1]) {
+        return pathParts[pIdx + 1];
+      }
     }
     return null;
   };
@@ -76,12 +92,36 @@ export default function App() {
       setLoading(true);
       setError(null);
 
+      const params = new URLSearchParams(window.location.search);
+      const urlStatus = (params.get('status') || '').toUpperCase();
+      const isPathFailed = window.location.pathname.includes('failed');
+
+      if (urlStatus === 'FAILED' || urlStatus === 'USER_DROPPED' || urlStatus === 'CANCELLED' || isPathFailed) {
+        setIsFailed(true);
+      }
+
       const { data, error: funcError } = await supabase.functions.invoke('tenant-pay-get-session', {
         body: { token: tokenStr }
       });
 
       if (funcError || !data || data.success === false) {
         throw new Error(funcError?.message || data?.error || 'Failed to retrieve payment link details.');
+      }
+
+      let isPaidStatus = data.is_paid || urlStatus === 'SUCCESS' || window.location.pathname.includes('success');
+
+      // If pending on return, auto-verify with Cashfree gateway
+      if (!isPaidStatus && (data.order_id || tokenStr)) {
+        try {
+          const { data: verifyData } = await supabase.functions.invoke('tenant-pay-verify', {
+            body: { order_id: data.order_id || tokenStr }
+          });
+          if (verifyData?.success && verifyData?.status === 'PAID') {
+            isPaidStatus = true;
+          }
+        } catch (vErr) {
+          console.log('[pay-page] Auto-verify check:', vErr);
+        }
       }
 
       const mappedTx: TransactionSession & { payment_session_id?: string; cf_order_id?: string; cashfree_link_url?: string } = {
@@ -91,7 +131,7 @@ export default function App() {
         cashfree_link_url: data.cashfree_link_url,
         amount: (data.amount_paise || 0) / 100,
         currency: data.currency || 'INR',
-        status: data.is_paid ? 'PAID' : 'PENDING',
+        status: isPaidStatus ? 'PAID' : (isFailed ? 'FAILED' : 'PENDING'),
         payment_token: tokenStr,
         metadata: {
           resident_name: data.resident_name,
@@ -130,7 +170,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (loading || error || timeLeft <= 0) return;
+    if (loading || error || timeLeft <= 0 || transaction?.status === 'PAID') return;
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -142,7 +182,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [loading, error, timeLeft]);
+  }, [loading, error, timeLeft, transaction?.status]);
 
   const loadCashfreeSDK = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -327,6 +367,44 @@ export default function App() {
             <button className="green-action-btn" onClick={() => window.print()}>
               <Receipt size={18} />
               Download Receipt
+            </button>
+          </>
+        ) : (isFailed || transaction?.status === 'FAILED') ? (
+          /* ── PAYMENT FAILED / CANCELLED VIEW ── */
+          <>
+            <div className="mock-card" style={{ textAlign: 'center', padding: '28px 20px' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px'
+              }}>
+                <AlertCircle size={36} color="var(--error)" />
+              </div>
+
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 6 }}>Payment Incomplete</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 20 }}>
+                The payment transaction could not be completed or was cancelled.
+              </p>
+
+              <div className="card-section-header">
+                <FileText size={14} color="var(--primary)" />
+                <span className="card-section-title">Summary</span>
+              </div>
+              <div style={{ background: 'var(--card-dark-bg)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+                <div className="resident-row">
+                  <span className="resident-row-key">Payable Amount</span>
+                  <span className="resident-row-val" style={{ color: 'var(--primary)', fontWeight: 900 }}>{formattedAmount}</span>
+                </div>
+                <div className="resident-row">
+                  <span className="resident-row-key">Resident</span>
+                  <span className="resident-row-val">{transaction?.metadata?.resident_name || 'Resident'}</span>
+                </div>
+              </div>
+            </div>
+
+            <button className="green-action-btn" onClick={() => { setIsFailed(false); handlePayment(); }}>
+              <RefreshCw size={18} />
+              Try Payment Again
             </button>
           </>
         ) : (
