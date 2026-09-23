@@ -27,6 +27,7 @@ interface TransactionSession {
   currency: string;
   status: string;
   payment_token: string;
+  cashfree_link_url?: string;
   metadata?: {
     resident_name?: string;
     resident_email?: string;
