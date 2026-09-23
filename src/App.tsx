@@ -40,14 +40,8 @@ interface TransactionSession {
   };
 }
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
 export default function App() {
-  const [transaction, setTransaction] = useState<(TransactionSession & { razorpay_key_id?: string }) | null>(null);
+  const [transaction, setTransaction] = useState<(TransactionSession & { payment_session_id?: string; cf_order_id?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
@@ -90,9 +84,10 @@ export default function App() {
         throw new Error(funcError?.message || data?.error || 'Failed to retrieve payment link details.');
       }
 
-      const mappedTx: TransactionSession & { razorpay_key_id?: string } = {
-        id: data.razorpay_order_id || '',
-        razorpay_key_id: data.razorpay_key_id,
+      const mappedTx: TransactionSession & { payment_session_id?: string; cf_order_id?: string } = {
+        id: data.order_id || data.razorpay_order_id || '',
+        payment_session_id: data.payment_session_id,
+        cf_order_id: data.cf_order_id || data.order_id,
         amount: (data.amount_paise || 0) / 100,
         currency: data.currency || 'INR',
         status: data.is_paid ? 'PAID' : 'PENDING',
@@ -148,14 +143,14 @@ export default function App() {
     return () => clearInterval(timer);
   }, [loading, error, timeLeft]);
 
-  const loadRazorpaySDK = (): Promise<boolean> => {
+  const loadCashfreeSDK = (): Promise<boolean> => {
     return new Promise((resolve) => {
-      if (window.Razorpay) {
+      if (window.Cashfree) {
         resolve(true);
         return;
       }
       const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
@@ -167,61 +162,26 @@ export default function App() {
 
     try {
       setVerifying(true);
-      const sdkLoaded = await loadRazorpaySDK();
-      if (!sdkLoaded) {
-        throw new Error('Razorpay SDK failed to load. Please check your internet connection.');
+      const sdkLoaded = await loadCashfreeSDK();
+      if (!sdkLoaded || !window.Cashfree) {
+        throw new Error('Cashfree SDK failed to load. Please check your internet connection.');
       }
 
-      const options = {
-        key: transaction.razorpay_key_id,
-        amount: Math.round(transaction.amount * 100),
-        currency: transaction.currency || 'INR',
-        name: transaction.metadata?.property_name || 'Nestora Pay',
-        description: transaction.metadata?.purpose || 'Hostel Rent Payment',
-        image: transaction.metadata?.property_logo || undefined,
-        order_id: transaction.id,
-        prefill: {
-          name: transaction.metadata?.resident_name || '',
-          email: transaction.metadata?.resident_email || '',
-          contact: transaction.metadata?.resident_phone || ''
-        },
-        theme: {
-          color: '#22C55E'
-        },
-        handler: async function (response: any) {
-          setVerifying(true);
-          try {
-            const { data: verifyData, error: verifyError } = await supabase.functions.invoke('tenant-pay-verify', {
-              body: {
-                payment_token: transaction.payment_token,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature
-              }
-            });
+      if (!transaction.payment_session_id) {
+        throw new Error('Payment session is missing. Please refresh and try again.');
+      }
 
-            if (verifyError || !verifyData || !verifyData.success) {
-              throw new Error(verifyData?.error || 'Payment verification failed.');
-            }
+      const cashfree = window.Cashfree({
+        mode: import.meta.env.PROD ? 'production' : 'sandbox',
+      });
 
-            setTransaction(prev => prev ? { ...prev, status: 'PAID' } : null);
-          } catch (err: any) {
-            setError(err.message || 'Verification failed. Please contact your hostel owner.');
-          } finally {
-            setVerifying(false);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            setVerifying(false);
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err: any) {
-      setError(err.message || 'Secure Checkout failed to initialize.');
+      await cashfree.checkout({
+        paymentSessionId: transaction.payment_session_id,
+        redirectTarget: '_self',
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Secure Checkout failed to initialize.';
+      setError(errMsg);
       setVerifying(false);
     }
   };
@@ -340,7 +300,7 @@ export default function App() {
                 </div>
                 <div className="resident-row">
                   <span className="resident-row-key">Type of Transaction</span>
-                  <span className="resident-row-val">Razorpay Gateway</span>
+                  <span className="resident-row-val">Cashfree Gateway</span>
                 </div>
                 <div className="resident-row">
                   <span className="resident-row-key">Total</span>
@@ -495,7 +455,7 @@ export default function App() {
                 </div>
                 {faqOpen === 1 && (
                   <p className="faq-a-txt">
-                    Yes. Your transaction is directly processed through Razorpay PCI-DSS compliant bank servers. Your credentials are never stored.
+                    Yes. Your transaction is directly processed through Cashfree Payments PCI-DSS compliant bank servers. Your credentials are never stored.
                   </p>
                 )}
               </div>
