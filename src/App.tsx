@@ -164,30 +164,30 @@ export default function App() {
     try {
       setVerifying(true);
 
-      // 1. Direct Cashfree Link URL Redirect
+      // 1. In-Page Cashfree Modal Checkout via payment_session_id
+      if (transaction.payment_session_id) {
+        const sdkLoaded = await loadCashfreeSDK();
+        if (sdkLoaded && window.Cashfree) {
+          const cashfree = window.Cashfree({
+            mode: import.meta.env.PROD ? 'production' : 'sandbox',
+          });
+
+          await cashfree.checkout({
+            paymentSessionId: transaction.payment_session_id,
+            redirectTarget: '_modal',
+          });
+          setVerifying(false);
+          return;
+        }
+      }
+
+      // 2. Fallback to direct Cashfree Link URL
       if (transaction.cashfree_link_url) {
         window.location.href = transaction.cashfree_link_url;
         return;
       }
 
-      // 2. Cashfree Drop-in JS SDK Checkout (if payment_session_id present)
-      const sdkLoaded = await loadCashfreeSDK();
-      if (!sdkLoaded || !window.Cashfree) {
-        throw new Error('Cashfree SDK failed to load. Please check your internet connection.');
-      }
-
-      if (!transaction.payment_session_id) {
-        throw new Error('Payment session is missing. Please refresh and try again.');
-      }
-
-      const cashfree = window.Cashfree({
-        mode: import.meta.env.PROD ? 'production' : 'sandbox',
-      });
-
-      await cashfree.checkout({
-        paymentSessionId: transaction.payment_session_id,
-        redirectTarget: '_self',
-      });
+      throw new Error('Payment session could not be initialized. Please refresh.');
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Secure Checkout failed to initialize.';
       setError(errMsg);
